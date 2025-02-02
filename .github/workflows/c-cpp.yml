@@ -30,4 +30,4 @@ jobs:
         arch: x86
     - name: run test vs
       if: ${{ always() }}
-      run: cl -c t1.c
+      run: cl -c -Wall t1.c
