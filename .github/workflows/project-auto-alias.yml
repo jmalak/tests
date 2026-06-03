@@ -20,7 +20,7 @@ jobs:
             const projectId = "PVT_kwHOAB7H7M4BZk7B";
             
             const repoMarkFieldId = "PVTSSF_lAHOAB7H7M4BZk7BzhUjAmA"; // ID pro RepoMark
-            const updatedFieldId = "ZDE_DOPLŇ_ID_TVÉHO_NOVÉHO_DATE_POLE"; // ID pro tvé nové pole "Updated"
+            const updatedFieldId = "PVTF_lAHOAB7H7M4BZk7BzhUkRVM"; // ID pro tvé nové pole "Updated"
 
             // === MAPOVÁNÍ REPOZITÁŘŮ NA BAREVNÉ MOŽNOSTI ===
             const aliasMapping = {
