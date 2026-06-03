@@ -85,7 +85,7 @@ jobs:
 
             // Mutace pro zápis datumu (Updated z repozitáře)
             const updateDateMutation = `
-              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: String!) {
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: Date!) {
                 updateProjectV2ItemFieldValue(input: {
                   projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
                   value: { date: $date }
