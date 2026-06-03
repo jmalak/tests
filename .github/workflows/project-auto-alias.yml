@@ -20,7 +20,7 @@ jobs:
             const projectId = "PVT_kwHOAB7H7M4BZk7B";
             
             const repoMarkFieldId = "PVTSSF_lAHOAB7H7M4BZk7BzhUjAmA"; // ID pro RepoMark
-            const updatedFieldId = "PVTF_lAHOAB7H7M4BZk7BzhUkRVM"; // ID pro tvé nové pole "Updated"
+            const updatedFieldId = "PVTF_lAHOAB7H7M4BZk7BzhUkRVM"; // ID pro UpdatedAt
 
             // === MAPOVÁNÍ REPOZITÁŘŮ NA BAREVNÉ MOŽNOSTI ===
             const aliasMapping = {
@@ -119,7 +119,7 @@ jobs:
                 const fieldNodes = item.fieldValues?.nodes || [];
                 
                 const currentRepoMark = fieldNodes.find(f => f?.field?.name === "RepoMark");
-                const currentUpdatedField = fieldNodes.find(f => f?.field?.name === "Updated"); // Název tvého nového sloupce
+                const currentUpdatedField = fieldNodes.find(f => f?.field?.name === "UpdatedAt");
 
                 let itemChanged = false;
 
