@@ -27,56 +27,6 @@ jobs:
               // Sem můžete připisovat další řádky podle vzoru výše
             };
 
-            const repositoryName = context.payload.project_card.content?.repository?.name;
-            const itemId = context.payload.project_card.node_id;
-            
-            // 1. Zde doplňte obecná ID z vašeho logu
-
-            if (!repositoryName) return;
-
-            // 2. Definice podmínek: Porovnání názvu repozitáře a přiřazení ID barvy
-            let optionId = "";
-            
-            if (repositoryName === "open-watcom/open-watcom-v2") {
-              optionId = "5f088986"; // V2
-            } else if (repositoryName === "open-watcom/setup-watcom") {
-              optionId = "0b0ebbc0"; // Setup
-            }
-            // Podle potřeby můžete přidat další "else if" pro další repozitáře
-
-            if (optionId === "") {
-              console.log(`Pro repozitář ${repositoryName} není definována žádná zkratka.`);
-              return;
-            }
-
-            // 3. GraphQL mutace, která zapíše barevný štítek do sloupce RepoMark
-            const query = `
-              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-                updateProjectV2ItemFieldValue(input: {
-                  projectId: $projectId
-                  itemId: $itemId
-                  fieldId: $fieldId
-                  value: { singleSelectOptionId: $optionId }
-                }) { projectV2Item { id } }
-              }
-            `;
-
-            await github.graphql(query, { projectId, itemId, fieldId, optionId });
-            console.log(`Úspěšně přiřazena zkratka pro repozitář: ${repositoryName}`);
-
-
-
-
-          script: |
-
-            // === MAPOVÁNÍ REPOZITÁŘŮ NA VAŠE BAREVNÉ MOŽNOSTI ===
-            const aliasMapping = {
-              "nazev-prveho-repozitare": "PAST_HERE_OPTION_ID_PRO_PISMENKO_A",
-              "nazev-druheho-repozitare": "PAST_HERE_OPTION_ID_PRO_PISMENKO_B",
-              "nazev-tretiho-repozitare": "PAST_HERE_OPTION_ID_PRO_PISMENKO_C"
-              // Sem můžete připisovat další řádky podle vzoru výše
-            };
-
             // 2. GraphQL dotaz, který vytáhne prvních 100 položek z projektu
             const fetchQuery = `
               query($user: String!, $number: Int!) {
