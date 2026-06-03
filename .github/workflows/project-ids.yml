@@ -1,0 +1,36 @@
+name: Zjistit ID projektu a barev
+
+on:
+  workflow_dispatch: # Umožní spustit skript ručně jedním kliknutím
+
+jobs:
+  print-ids:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch IDs from GitHub
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PERSONAL_PROJECT_TOKEN }}
+          script: |
+            const query = `
+              query {
+                user(login: "jmalak") {
+                  projectV2(number: CISLO_PROJEKTU) {
+                    id
+                    field(name: "Repo") {
+                      ... on ProjectV2SingleSelectField {
+                        id
+                        options { id name }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+            const result = await github.graphql(query);
+            console.log("=========================================");
+            console.log("ID VAŠEHO PROJEKTU:", result.user.projectV2.id);
+            console.log("ID SLOUPCE 'Repo':", result.user.projectV2.field.id);
+            console.log("MOŽNOSTI A JEJICH ID:");
+            console.log(JSON.stringify(result.user.projectV2.field.options, null, 2));
+            console.log("=========================================");
