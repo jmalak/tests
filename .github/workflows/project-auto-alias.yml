@@ -2,36 +2,37 @@ name: Auto Assign RepoMark Alias (Scheduled)
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Spustí se automaticky každou hodinu (v noci i přes den)
-  workflow_dispatch:     # Umožní vám skript kdykoliv spustit ručně jedním kliknutím
+    - cron: '0 * * * *' # Spustí se automaticky každou hodinu
+  workflow_dispatch: # Umožní skript kdykoliv spustit ručně
 
 jobs:
   assign-alias:
     runs-on: ubuntu-latest
     steps:
-      - name: Scan and Process Repository Aliases
+      - name: Scan and Process Repository Aliases and Dates
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.PERSONAL_PROJECT_TOKEN }}
           script: |
-            // === 1. ZDE DOSAĎTE VAŠE OBECNÁ ID ===
-            const userLogin = "jmalak"; 
-            const projectNumber = 1; // Např. 3 (číslo, ne text)
-            const projectId = "PVT_kwHOAB7H7M4BZk7B"; 
-            const fieldId = "PVTSSF_lAHOAB7H7M4BZk7BzhUjAmA"; 
+            // === 1. OBECNÁ ID PROJEKTU A POLÍ ===
+            const userLogin = "jmalak";
+            const projectNumber = 1; 
+            const projectId = "PVT_kwHOAB7H7M4BZk7B";
+            
+            const repoMarkFieldId = "PVTSSF_lAHOAB7H7M4BZk7BzhUjAmA"; // ID pro RepoMark
+            const updatedFieldId = "ZDE_DOPLŇ_ID_TVÉHO_NOVÉHO_DATE_POLE"; // ID pro tvé nové pole "Updated"
 
-            // === MAPOVÁNÍ REPOZITÁŘŮ NA VAŠE BAREVNÉ MOŽNOSTI ===
+            // === MAPOVÁNÍ REPOZITÁŘŮ NA BAREVNÉ MOŽNOSTI ===
             const aliasMapping = {
               "open-watcom-v2": "5f088986", // V2
               "setup-watcom": "0b0ebbc0"    // Setup
-              // Sem můžete připisovat další řádky podle vzoru výše
             };
 
             let hasNextPage = true;
             let afterCursor = null;
             let totalProcessed = 0;
 
-            // 2. GraphQL dotaz, který vytáhne prvních 100 položek z projektu
+            // 2. DOTAZ: Stahujeme už i updatedAt přímo z issue/PR
             const fetchQuery = `
               query($user: String!, $number: Int!, $after: String) {
                 user(login: $user) {
@@ -44,13 +45,24 @@ jobs:
                       nodes {
                         id
                         content {
-                          ... on Issue { repository { name } }
-                          ... on PullRequest { repository { name } }
+                          ... on Issue { 
+                            updatedAt
+                            repository { name } 
+                          }
+                          ... on PullRequest { 
+                            updatedAt
+                            repository { name } 
+                          }
                         }
                         fieldValues(first: 100) {
                           nodes {
                             ... on ProjectV2ItemFieldSingleSelectValue {
                               field { ... on ProjectV2FieldCommon { name } }
+                              optionId
+                            }
+                            ... on ProjectV2ItemFieldDateValue {
+                              field { ... on ProjectV2FieldCommon { name } }
+                              date
                             }
                           }
                         }
@@ -61,63 +73,93 @@ jobs:
               }
             `;
 
-            // 3. Hlavní cyklus, který bude listovat stránkami, dokud nedojde na konec
+            // Mutace pro zápis výběru (RepoMark)
+            const updateSelectMutation = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                  value: { singleSelectOptionId: $optionId }
+                }) { projectV2Item { id } }
+              }
+            `;
+
+            // Mutace pro zápis datumu (Updated z repozitáře)
+            const updateDateMutation = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $date: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId, itemId: $itemId, fieldId: $fieldId,
+                  value: { date: $date }
+                }) { projectV2Item { id } }
+              }
+            `;
+
+            // 3. HLAVNÍ CYKLUS
             while (hasNextPage) {
-              const result = await github.graphql(fetchQuery, { 
-                user: userLogin, 
+              const result = await github.graphql(fetchQuery, {
+                user: userLogin,
                 number: projectNumber,
                 after: afterCursor
               });
 
-              // BEZPEČNOSTNÍ KONTROLA: Pokud data vůbec nedorazila, ukončíme cyklus
               const projectV2 = result?.user?.projectV2;
-              if (!projectV2 || !projectV2.items) {
-                console.log("Nebyla nalezena žádná další data projektu.");
-                break;
-              }
+              if (!projectV2 || !projectV2.items) break;
 
               const projectItems = projectV2.items;
               const items = projectItems.nodes || [];
-              
-              // Aktualizujeme informace pro další stránku
+
               hasNextPage = projectItems.pageInfo?.hasNextPage || false;
               afterCursor = projectItems.pageInfo?.endCursor || null;
 
-              console.log(`Načtena stránka projektových dat, zpracovávám ${items.length} položek...`);
-
-              // Projdeme staženou stovku položek
               for (const item of items) {
                 const repoName = item.content?.repository?.name;
+                const repoUpdatedAt = item.content?.updatedAt; // Čas z repozitáře
                 if (!repoName) continue;
 
-                // Zkontrolujeme, zda už pole RepoMark má hodnotu
-                const hasRepoMark = item.fieldValues && item.fieldValues.nodes && item.fieldValues.nodes.some(f => f && f.field && f.field.name === "RepoMark");
-                if (hasRepoMark) continue; 
+                // Kontrola aktuálních hodnot v projektu, abychom nezapisovali zbytečně
+                const fieldNodes = item.fieldValues?.nodes || [];
+                
+                const currentRepoMark = fieldNodes.find(f => f?.field?.name === "RepoMark");
+                const currentUpdatedField = fieldNodes.find(f => f?.field?.name === "Updated"); // Název tvého nového sloupce
 
-                // Najdeme správné ID barvy podle názvu repozitáře
-                const optionId = aliasMapping[repoName];
-                if (!optionId) {
-                  console.log(`Pro repozitář '${repoName}' nemáte definované písmenko.`);
-                  continue;
+                let itemChanged = false;
+
+                // A. AKTUALIZACE REPOMARK (Zapisuje se jen, pokud chybí)
+                if (!currentRepoMark) {
+                  const targetOptionId = aliasMapping[repoName];
+                  if (targetOptionId) {
+                    try {
+                      await github.graphql(updateSelectMutation, {
+                        projectId, itemId: item.id, fieldId: repoMarkFieldId, optionId: targetOptionId
+                      });
+                      itemChanged = true;
+                    } catch (e) {
+                      console.error(`Chyba RepoMark u ${item.id}:`, e.message);
+                    }
+                  }
                 }
 
-                // 4. Zápis barvy do konkrétního řádku
-                const updateMutation = `
-                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-                    updateProjectV2ItemFieldValue(input: {
-                      projectId: $projectId
-                      itemId: $itemId
-                      fieldId: $fieldId
-                      value: { singleSelectOptionId: $optionId }
-                    }) { projectV2Item { id } }
-                  }
-                `;
+                // B. AKTUALIZACE DATUMU (Zapisuje/přepisuje se vždy, když se čas v issue změní)
+                if (repoUpdatedAt) {
+                  // Ořízneme čas na formát YYYY-MM-DD, který vyžaduje GitHub Project Date pole
+                  const repoDateOnly = repoUpdatedAt.split('T')[0]; 
+                  const currentDateOnly = currentUpdatedField?.date;
 
-                await github.graphql(updateMutation, { projectId, itemId: item.id, fieldId, optionId });
-                totalProcessed++;
+                  if (currentDateOnly !== repoDateOnly) {
+                    try {
+                      await github.graphql(updateDateMutation, {
+                        projectId, itemId: item.id, fieldId: updatedFieldId, date: repoDateOnly
+                      });
+                      itemChanged = true;
+                    } catch (e) {
+                      console.error(`Chyba datumu u ${item.id}:`, e.message);
+                    }
+                  }
+                }
+
+                if (itemChanged) totalProcessed++;
               }
             }
 
             console.log(`=========================================`);
-            console.log(`Hromadná aktualizace dokončena. Nově označeno úkolů: ${totalProcessed}`);
+            console.log(`Zpracování dokončeno. Aktualizováno řádků: ${totalProcessed}`);
             console.log(`=========================================`);
