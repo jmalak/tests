@@ -53,37 +53,60 @@ jobs:
               }
             `;
 
-            const result = await github.graphql(fetchQuery, { user: userLogin, number: projectNumber });
-            const items = result.user.projectV2.items.nodes;
+            let hasNextPage = true;
+            let afterCursor = null;
+            let totalProcessed = 0;
 
-            // 3. Projdeme všechny položky a ty neobarvené zpracujeme
-            for (const item of items) {
-              const repoName = item.content?.repository?.name;
-              if (!repoName) continue;
+            // 3. Hlavní cyklus, který bude listovat stránkami, dokud nedojde na konec
+            while (hasNextPage) {
+              const result = await github.graphql(fetchQuery, { 
+                user: userLogin, 
+                number: projectNumber,
+                after: afterCursor
+              });
 
-              // Zkontrolujeme, zda už pole RepoMark náhodou není vyplněné
-              const hasRepoMark = item.fieldValues.nodes.some(f => f && f.field && f.field.name === "RepoMark");
-              if (hasRepoMark) continue; // Pokud už barvu má, přeskočíme ho
+              const projectItems = result.user.projectV2.items;
+              const items = projectItems.nodes;
+              
+              // Aktualizujeme informace pro další stránku
+              hasNextPage = projectItems.pageInfo.hasNextPage;
+              afterCursor = projectItems.pageInfo.endCursor;
 
-              // Najdeme správné ID barvy podle názvu repozitáře
-              const optionId = aliasMapping[repoName];
-              if (!optionId) {
-                console.log(`Pro repozitář '${repoName}' nemáte definované písmenko.`);
-                continue;
-              }
+              console.log(`Načtena stránka projektových dat, zpracovávám ${items.length} položek...`);
 
-              // 4. GraphQL mutace pro zápis barvy do konkrétního řádku
-              const updateMutation = `
-                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
-                  updateProjectV2ItemFieldValue(input: {
-                    projectId: $projectId
-                    itemId: $itemId
-                    fieldId: $fieldId
-                    value: { singleSelectOptionId: $optionId }
-                  }) { projectV2Item { id } }
+              // Projdeme staženou stovku položek
+              for (const item of items) {
+                const repoName = item.content?.repository?.name;
+                if (!repoName) continue;
+
+                // Zkontrolujeme, zda už pole RepoMark má hodnotu
+                const hasRepoMark = item.fieldValues.nodes.some(f => f && f.field && f.field.name === "RepoMark");
+                if (hasRepoMark) continue; 
+
+                // Najdeme správné ID barvy podle názvu repozitáře
+                const optionId = aliasMapping[repoName];
+                if (!optionId) {
+                  console.log(`Pro repozitář '${repoName}' nemáte definované písmenko.`);
+                  continue;
                 }
-              `;
 
-              await github.graphql(updateMutation, { projectId, itemId: item.id, fieldId, optionId });
-              console.log(`Úspěšně aktualizovaná značka pro úkol z repozitáře: ${repoName}`);
+                // 4. Zápis barvy do konkrétního řádku
+                const updateMutation = `
+                  mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                    updateProjectV2ItemFieldValue(input: {
+                      projectId: $projectId
+                      itemId: $itemId
+                      fieldId: $fieldId
+                      value: { singleSelectOptionId: $optionId }
+                    }) { projectV2Item { id } }
+                  }
+                `;
+
+                await github.graphql(updateMutation, { projectId, itemId: item.id, fieldId, optionId });
+                totalProcessed++;
+              }
             }
+
+            console.log(`=========================================`);
+            console.log(`Hromadná aktualizace dokončena. Nově označeno úkolů: ${totalProcessed}`);
+            console.log(`=========================================`);
