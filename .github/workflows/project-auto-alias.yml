@@ -27,6 +27,10 @@ jobs:
               // Sem můžete připisovat další řádky podle vzoru výše
             };
 
+            let hasNextPage = true;
+            let afterCursor = null;
+            let totalProcessed = 0;
+
             // 2. GraphQL dotaz, který vytáhne prvních 100 položek z projektu
             const fetchQuery = `
               query($user: String!, $number: Int!) {
@@ -52,10 +56,6 @@ jobs:
                 }
               }
             `;
-
-            let hasNextPage = true;
-            let afterCursor = null;
-            let totalProcessed = 0;
 
             // 3. Hlavní cyklus, který bude listovat stránkami, dokud nedojde na konec
             while (hasNextPage) {
