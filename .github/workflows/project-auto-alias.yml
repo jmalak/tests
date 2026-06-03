@@ -65,12 +65,19 @@ jobs:
                 after: afterCursor
               });
 
-              const projectItems = result.user.projectV2.items;
-              const items = projectItems.nodes;
+              // BEZPEČNOSTNÍ KONTROLA: Pokud data vůbec nedorazila, ukončíme cyklus
+              const projectV2 = result?.user?.projectV2;
+              if (!projectV2 || !projectV2.items) {
+                console.log("Nebyla nalezena žádná další data projektu.");
+                break;
+              }
+
+              const projectItems = projectV2.items;
+              const items = projectItems.nodes || [];
               
               // Aktualizujeme informace pro další stránku
-              hasNextPage = projectItems.pageInfo.hasNextPage;
-              afterCursor = projectItems.pageInfo.endCursor;
+              hasNextPage = projectItems.pageInfo?.hasNextPage || false;
+              afterCursor = projectItems.pageInfo?.endCursor || null;
 
               console.log(`Načtena stránka projektových dat, zpracovávám ${items.length} položek...`);
 
