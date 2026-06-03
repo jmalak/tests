@@ -1,24 +1,36 @@
-name: Auto Assign RepoMark Alias
+name: Auto Assign RepoMark Alias (Scheduled)
 
 on:
-  project_card:
-    types: [converted, moved] # Spustí se, jakmile se issue objeví na projektu
+  schedule:
+    - cron: '0 * * * *'  # Spustí se automaticky každou hodinu (v noci i přes den)
+  workflow_dispatch:     # Umožní vám skript kdykoliv spustit ručně jedním kliknutím
 
 jobs:
   assign-alias:
     runs-on: ubuntu-latest
     steps:
-      - name: Process Repository Alias
+      - name: Scan and Process Repository Aliases
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.PERSONAL_PROJECT_TOKEN }}
           script: |
+            // === 1. ZDE DOSAĎTE VAŠE OBECNÁ ID ===
+            const userLogin = "jmalak"; 
+            const projectNumber = 1; // Např. 3 (číslo, ne text)
+            const projectId = "PVT_kwHOAB7H7M4BZk7B"; 
+            const fieldId = "PVTSSF_lAHOAB7H7M4BZk7BzhUjAmA"; 
+
+            // === MAPOVÁNÍ REPOZITÁŘŮ NA VAŠE BAREVNÉ MOŽNOSTI ===
+            const aliasMapping = {
+              "open-watcom/open-watcom-v2": "5f088986", // V2
+              "open-watcom/setup-watcom": "0b0ebbc0"    // Setup
+              // Sem můžete připisovat další řádky podle vzoru výše
+            };
+
             const repositoryName = context.payload.project_card.content?.repository?.name;
             const itemId = context.payload.project_card.node_id;
             
             // 1. Zde doplňte obecná ID z vašeho logu
-            const projectId = "PVT_kwHOAB7H7M4BZk7B"; 
-            const fieldId = "PVTSSF_lAHOAB7H7M4BZk7BzhUjAmA"; 
 
             if (!repositoryName) return;
 
@@ -51,3 +63,77 @@ jobs:
 
             await github.graphql(query, { projectId, itemId, fieldId, optionId });
             console.log(`Úspěšně přiřazena zkratka pro repozitář: ${repositoryName}`);
+
+
+
+
+          script: |
+
+            // === MAPOVÁNÍ REPOZITÁŘŮ NA VAŠE BAREVNÉ MOŽNOSTI ===
+            const aliasMapping = {
+              "nazev-prveho-repozitare": "PAST_HERE_OPTION_ID_PRO_PISMENKO_A",
+              "nazev-druheho-repozitare": "PAST_HERE_OPTION_ID_PRO_PISMENKO_B",
+              "nazev-tretiho-repozitare": "PAST_HERE_OPTION_ID_PRO_PISMENKO_C"
+              // Sem můžete připisovat další řádky podle vzoru výše
+            };
+
+            // 2. GraphQL dotaz, který vytáhne prvních 100 položek z projektu
+            const fetchQuery = `
+              query($user: String!, $number: Int!) {
+                user(login: $user) {
+                  projectV2(number: $number) {
+                    items(first: 100) {
+                      nodes {
+                        id
+                        content {
+                          ... on Issue { repository { name } }
+                          ... on PullRequest { repository { name } }
+                        }
+                        fieldValues(first: 100) {
+                          nodes {
+                            ... on ProjectV2ItemFieldSingleSelectValue {
+                              field { ... on ProjectV2FieldCommon { name } }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
+
+            const result = await github.graphql(fetchQuery, { user: userLogin, number: projectNumber });
+            const items = result.user.projectV2.items.nodes;
+
+            // 3. Projdeme všechny položky a ty neobarvené zpracujeme
+            for (const item of items) {
+              const repoName = item.content?.repository?.name;
+              if (!repoName) continue;
+
+              // Zkontrolujeme, zda už pole RepoMark náhodou není vyplněné
+              const hasRepoMark = item.fieldValues.nodes.some(f => f.field?.name === "RepoMark");
+              if (hasRepoMark) continue; // Pokud už barvu má, přeskočíme ho
+
+              // Najdeme správné ID barvy podle názvu repozitáře
+              const optionId = aliasMapping[repoName];
+              if (!optionId) {
+                console.log(`Pro repozitář '${repoName}' nemáte definované písmenko.`);
+                continue;
+              }
+
+              // 4. GraphQL mutace pro zápis barvy do konkrétního řádku
+              const updateMutation = `
+                mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                  updateProjectV2ItemFieldValue(input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: { singleSelectOptionId: $optionId }
+                  }) { projectV2Item { id } }
+                }
+              `;
+
+              await github.graphql(updateMutation, { projectId, itemId: item.id, fieldId, optionId });
+              console.log(`Úspěšně aktualizovaná značka pro úkol z repozitáře: ${repoName}`);
+            }
