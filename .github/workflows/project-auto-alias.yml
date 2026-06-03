@@ -22,8 +22,8 @@ jobs:
 
             // === MAPOVÁNÍ REPOZITÁŘŮ NA VAŠE BAREVNÉ MOŽNOSTI ===
             const aliasMapping = {
-              "open-watcom/open-watcom-v2": "5f088986", // V2
-              "open-watcom/setup-watcom": "0b0ebbc0"    // Setup
+              "open-watcom-v2": "5f088986", // V2
+              "setup-watcom": "0b0ebbc0"    // Setup
               // Sem můžete připisovat další řádky podle vzoru výše
             };
 
