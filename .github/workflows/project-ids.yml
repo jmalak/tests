@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Fetch IDs from GitHub
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.PERSONAL_PROJECT_TOKEN }}
           script: |
@@ -17,10 +17,17 @@ jobs:
                 user(login: "jmalak") {
                   projectV2(number: 1) {
                     id
-                    field(name: "RepoMark") {
+                    # První pole: RepoMark
+                    poleRepo: field(name: "RepoMark") {
                       ... on ProjectV2SingleSelectField {
                         id
                         options { id name }
+                      }
+                    }
+                    # Druhé pole: UpdatedAt
+                    poleUpdatedAt: field(name: "UpdatedAt") {
+                      ... on ProjectV2Field {
+                        id
                       }
                     }
                   }
@@ -28,9 +35,12 @@ jobs:
               }
             `;
             const result = await github.graphql(query);
+            const project = result.user.projectV2;
+
             console.log("=========================================");
-            console.log("ID VAŠEHO PROJEKTU:", result.user.projectV2.id);
-            console.log("ID SLOUPCE 'Repo':", result.user.projectV2.field.id);
-            console.log("MOŽNOSTI A JEJICH ID:");
+            console.log("ID VAŠEHO PROJEKTU:", project.id);
+            console.log("-----------------------------------------");
+            console.log("ID SLOUPCE 'RepoMark':", project.poleRepo?.id);
             console.log(JSON.stringify(result.user.projectV2.field.options, null, 2));
-            console.log("=========================================");
+            console.log("-----------------------------------------");
+            console.log("ID SLOUPCE 'UpdatedAt':", project.poleUpdatedAt?.id);
