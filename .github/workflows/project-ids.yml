@@ -15,7 +15,7 @@ jobs:
             const query = `
               query {
                 user(login: "jmalak") {
-                  projectV2(number: CISLO_PROJEKTU) {
+                  projectV2(number: 1) {
                     id
                     field(name: "Repo") {
                       ... on ProjectV2SingleSelectField {
