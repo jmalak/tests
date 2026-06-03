@@ -34,13 +34,23 @@ jobs:
                 }
               }
             `;
+            
             const result = await github.graphql(query);
             const project = result.user.projectV2;
-
+            
             console.log("=========================================");
             console.log("ID VAŠEHO PROJEKTU:", project.id);
             console.log("-----------------------------------------");
             console.log("ID SLOUPCE 'RepoMark':", project.poleRepo?.id);
-            console.log(JSON.stringify(project.poleRepo.options, null, 2));
+            
+            // Bezpečný výpis možností pouze pokud existují
+            if (project.poleRepo && project.poleRepo.options) {
+              console.log("MOŽNOSTI PRO RepoMark:");
+              console.log(JSON.stringify(project.poleRepo.options, null, 2));
+            } else {
+              console.log("Pole 'RepoMark' nemá žádné options nebo není typu SingleSelect.");
+            }
+            
             console.log("-----------------------------------------");
             console.log("ID SLOUPCE 'UpdatedAt':", project.poleUpdatedAt?.id);
+            console.log("=========================================");
