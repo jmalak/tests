@@ -1,0 +1,53 @@
+name: Auto Assign RepoMark Alias
+
+on:
+  project_card:
+    types: [converted, moved] # Spustí se, jakmile se issue objeví na projektu
+
+jobs:
+  assign-alias:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process Repository Alias
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PERSONAL_PROJECT_TOKEN }}
+          script: |
+            const repositoryName = context.payload.project_card.content?.repository?.name;
+            const itemId = context.payload.project_card.node_id;
+            
+            // 1. Zde doplňte obecná ID z vašeho logu
+            const projectId = "PAST_HERE_PROJECT_ID"; 
+            const fieldId = "PAST_HERE_REPOMARK_FIELD_ID"; 
+
+            if (!repositoryName) return;
+
+            // 2. Definice podmínek: Porovnání názvu repozitáře a přiřazení ID barvy
+            let optionId = "";
+            
+            if (repositoryName === "open-watcom/open-watcom-v2") {
+              optionId = "5f088986"; // V2
+            } else if (repositoryName === "open-watcom/setup-watcom") {
+              optionId = "0b0ebbc0"; // Setup
+            }
+            // Podle potřeby můžete přidat další "else if" pro další repozitáře
+
+            if (optionId === "") {
+              console.log(`Pro repozitář ${repositoryName} není definována žádná zkratka.`);
+              return;
+            }
+
+            // 3. GraphQL mutace, která zapíše barevný štítek do sloupce RepoMark
+            const query = `
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(input: {
+                  projectId: $projectId
+                  itemId: $itemId
+                  fieldId: $fieldId
+                  value: { singleSelectOptionId: $optionId }
+                }) { projectV2Item { id } }
+              }
+            `;
+
+            await github.graphql(query, { projectId, itemId, fieldId, optionId });
+            console.log(`Úspěšně přiřazena zkratka pro repozitář: ${repositoryName}`);
