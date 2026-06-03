@@ -41,6 +41,6 @@ jobs:
             console.log("ID VAŠEHO PROJEKTU:", project.id);
             console.log("-----------------------------------------");
             console.log("ID SLOUPCE 'RepoMark':", project.poleRepo?.id);
-            console.log(JSON.stringify(result.user.projectV2.field.options, null, 2));
+            console.log(JSON.stringify(project.poleRepo.options, null, 2));
             console.log("-----------------------------------------");
             console.log("ID SLOUPCE 'UpdatedAt':", project.poleUpdatedAt?.id);
