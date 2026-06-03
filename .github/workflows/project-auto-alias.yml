@@ -17,7 +17,7 @@ jobs:
             const itemId = context.payload.project_card.node_id;
             
             // 1. Zde doplňte obecná ID z vašeho logu
-            const projectId = "PAST_HERE_PROJECT_ID"; 
+            const projectId = "1"; 
             const fieldId = "PAST_HERE_REPOMARK_FIELD_ID"; 
 
             if (!repositoryName) return;
