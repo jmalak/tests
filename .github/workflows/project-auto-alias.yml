@@ -33,10 +33,14 @@ jobs:
 
             // 2. GraphQL dotaz, který vytáhne prvních 100 položek z projektu
             const fetchQuery = `
-              query($user: String!, $number: Int!) {
+              query($user: String!, $number: Int!, $after: String) {
                 user(login: $user) {
                   projectV2(number: $number) {
-                    items(first: 100) {
+                    items(first: 100, after: $after) {
+                      pageInfo {
+                        hasNextPage
+                        endCursor
+                      }
                       nodes {
                         id
                         content {
