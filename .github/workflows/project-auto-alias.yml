@@ -62,7 +62,7 @@ jobs:
               if (!repoName) continue;
 
               // Zkontrolujeme, zda už pole RepoMark náhodou není vyplněné
-              const hasRepoMark = item.fieldValues.nodes.some(f => f.field?.name === "RepoMark");
+              const hasRepoMark = item.fieldValues.nodes.some(f => f && f.field && f.field.name === "RepoMark");
               if (hasRepoMark) continue; // Pokud už barvu má, přeskočíme ho
 
               // Najdeme správné ID barvy podle názvu repozitáře
