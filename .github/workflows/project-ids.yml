@@ -1,4 +1,4 @@
-name: Zjistit ID projektu a barev
+name: Zjistit ID v projektu
 
 on:
   workflow_dispatch: # Umožní spustit skript ručně jedním kliknutím
